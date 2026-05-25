@@ -1,5 +1,145 @@
 # Unity WebRTC Phone Controller
 
+English | [中文](#中文)
+
+Control Unity scene objects in real time using a mobile browser via WebRTC — supports gyroscope rotation, joystick movement, and button-based grab.
+
+## Requirements
+
+- Unity **6000.0.60f1** (URP)
+- Network access (both PC and phone must reach the Railway Signaling Server)
+
+## Download & Open
+
+> ⚠️ This is a full Unity **project**, not a Package.
+> Do **not** paste the URL into Unity Package Manager — that will throw an error.
+
+### Option A — Download ZIP (no git required)
+
+1. **[Download ZIP](https://github.com/AhhhhHeyyy/UnityLong/archive/refs/heads/main.zip)**
+2. Extract the archive — you'll get a `UnityLong-main` folder
+3. Open **Unity Hub** → **Add** → **Add project from disk**
+4. Select the extracted folder, confirm Unity version **6000.0.60f1** → Open
+
+### Option B — git clone
+
+```bash
+git clone https://github.com/AhhhhHeyyy/UnityLong.git
+```
+
+Then open the `UnityLong` folder the same way via Unity Hub **Add project from disk**.
+
+---
+
+### After opening
+
+- Unity will automatically restore packages (WebRTC, NativeWebSocket, URP) on first launch — wait a few minutes
+- Once packages are resolved, open any scene under `Assets/Assets/Scenes/` and press **Play**
+- Scan the QR Code on screen with your phone to start controlling
+
+---
+
+## How It Works
+
+```
+Mobile browser (sensor.html)
+    │  WebSocket (Signaling)
+    ▼
+Railway Signaling Server
+    │  WebRTC DataChannel (28 bytes / packet)
+    ▼
+Unity (WebRtcGyroscopeReceiver)
+    │  SensorEvents (static events)
+    ├─▶ GyroToRotation            → object rotation
+    ├─▶ WebRtcJoystickController  → object movement
+    └─▶ WebRtcSelectController    → raycast grab
+```
+
+The phone sends a **28-byte Big-Endian** packet every frame containing quaternion, acceleration, joystick axes, and button state. Unity parses it and dispatches to each controller via `SensorEvents` static events.
+
+---
+
+## Project Structure
+
+```
+Assets/Assets/
+├── Scenes/
+│   ├── 0521.unity          Main demo scene
+│   ├── SampleScene.unity   URP default scene
+│   └── Scene1.unity        Basic test scene
+│
+├── WebRtcGyroscopeReceiver.cs   Core: WebRTC connection + packet parsing + room code
+├── SensorEvents.cs              Static event bus (gyroscope / joystick / grab)
+├── GyroToRotation.cs            Subscribes to gyro events, drives Transform rotation
+├── WebRtcJoystickController.cs  Subscribes to joystick events, drives Transform movement
+├── WebRtcSelectController.cs    Subscribes to button events, raycast grab on DraggableObject
+├── DraggableObject.cs           Attach to any grabbable object for raycast detection
+├── QrCodeDisplay.cs             Reads room code, fetches and displays QR Code image
+│
+├── JoyconLib_scripts/           Joy-Con wired input (HIDapi / Joycon / JoyconManager)
+├── JoyconLib_plugins/           HID native libraries (win32 / win64 / mac)
+│
+├── AntiGravityObject.cs         Anti-gravity object behaviour
+├── Gravity_CSharpScript2_TkOver.cs  Gravity override script
+├── Motor_Rotate&Move.cs         Motor rotation + movement script
+├── MouseDragPhysics2.cs         Mouse drag physics (attach to Camera)
+│
+├── Settings/                    URP render pipeline assets (PC / Mobile quality tiers)
+├── Crate.prefab                 Grabbable crate prefab
+├── GameObject.prefab            General-purpose prefab
+├── stick.prefab / big bawl.fbx  Custom models
+└── *.mat / *.shader             Materials and shaders
+```
+
+---
+
+## Script Setup
+
+### Minimum working configuration
+
+| Script | Attach to | Required fields |
+|--------|-----------|-----------------|
+| `WebRtcGyroscopeReceiver` | Any GameObject | Signaling URL (pre-filled) |
+| `QrCodeDisplay` | UI object with `RawImage` | `Receiver` (drag in the receiver object) |
+| `GyroToRotation` | Object to rotate | — |
+| `WebRtcJoystickController` | Object to move | — |
+| `WebRtcSelectController` | Any GameObject (Camera works) | `AimPoint`, `LockTarget` |
+| `DraggableObject` | Each grabbable object | — |
+
+### WebRtcSelectController fields
+
+- **AimPoint** — raycast origin (typically the camera or a hand-held point Transform)
+- **LockTarget** — Transform the held object follows (can be the same as AimPoint)
+- **DraggableLayer** — only objects on this layer will be hit by the ray
+
+---
+
+## Package Dependencies
+
+| Package | Version |
+|---------|---------|
+| com.unity.webrtc | 3.0.0-pre.8 |
+| com.endel.nativewebsocket | git (upm branch) |
+| com.unity.render-pipelines.universal | 17.0.4 |
+
+Dependencies are recorded in `Packages/manifest.json`. Unity restores them automatically on first open — no manual installation needed.
+
+---
+
+## Signaling Server
+
+Default: `wss://wtb-sensor-production.up.railway.app`
+Can be changed in the `WebRtcGyroscopeReceiver` Inspector under **Signaling URL**.
+The mobile page (`sensor.html`) is hosted on the same domain; scanning the QR Code passes the room code automatically.
+
+---
+
+---
+
+# 中文
+
+Control Unity scene objects in real time using a mobile browser via WebRTC — supports gyroscope rotation, joystick movement, and button-based grab.
+
 用手機瀏覽器透過 WebRTC 即時控制 Unity 場景中的物件——支援陀螺儀旋轉、搖桿移動、按鈕抓取三種輸入。
 
 ## 需求
@@ -48,9 +188,9 @@ Railway Signaling Server
     ▼
 Unity (WebRtcGyroscopeReceiver)
     │  SensorEvents (static events)
-    ├─▶ GyroToRotation       → 物件旋轉
-    ├─▶ WebRtcJoystickController → 物件移動
-    └─▶ WebRtcSelectController   → 射線抓取
+    ├─▶ GyroToRotation            → 物件旋轉
+    ├─▶ WebRtcJoystickController  → 物件移動
+    └─▶ WebRtcSelectController    → 射線抓取
 ```
 
 手機每幀發送 **28 bytes Big-Endian** 封包，包含四元數、加速度、搖桿軸值、按鈕狀態，Unity 端解析後透過 `SensorEvents` 靜態事件分發給各控制元件。
