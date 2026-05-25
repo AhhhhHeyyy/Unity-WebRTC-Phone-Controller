@@ -25,3 +25,9 @@ Thumbs.db
 
 # JetBrains
 .idea/
+
+# Auto-generated / redundant files
+UIElementsSchema/
+ScriptDocs.html
+vsconfig
+*.zip
