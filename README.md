@@ -7,34 +7,33 @@
 - Unity **6000.0.60f1**（URP）
 - 網路連線（手機與電腦需能連到 Railway Signaling Server）
 
-## 快速開始
+## 下載與開啟方式
 
-> **注意：這是完整的 Unity 專案，不是 Package。**
-> 請用以下步驟開啟，不要貼網址到 Unity Package Manager。
+> ⚠️ 這是完整的 Unity 專案，**不是 Package**。
+> 不要把連結貼到 Unity Package Manager，那樣會報錯。
 
-**Step 1 — 下載專案**
+### 方法一：直接下載 ZIP（不需安裝 git）
 
-有兩種方式，擇一即可：
+1. **[點此下載 ZIP](https://github.com/AhhhhHeyyy/UnityLong/archive/refs/heads/main.zip)**
+2. 解壓縮，得到 `UnityLong-main` 資料夾
+3. 打開 **Unity Hub** → **Add** → **Add project from disk**
+4. 選取解壓縮後的資料夾，確認 Unity 版本 **6000.0.60f1** → Open
 
-- **不需要 git**：直接下載 ZIP → [點此下載](https://github.com/AhhhhHeyyy/UnityLong/archive/refs/heads/main.zip) → 解壓縮
-- **有安裝 git**：在終端機執行 `git clone https://github.com/AhhhhHeyyy/UnityLong.git`
+### 方法二：git clone（需安裝 git）
 
-**Step 2 — 用 Unity Hub 開啟**
+```bash
+git clone https://github.com/AhhhhHeyyy/UnityLong.git
+```
 
-1. 打開 **Unity Hub**
-2. 點選 **Add** → **Add project from disk**
-3. 選取剛才 clone 下來的 `UnityLong` 資料夾（根目錄，不是子資料夾）
-4. 確認 Unity 版本為 **6000.0.60f1**，按 Open
+clone 完後同樣用 Unity Hub **Add project from disk** 開啟 `UnityLong` 資料夾。
 
-**Step 3 — 等待套件還原**
+---
 
-第一次開啟時 Unity 會自動下載套件（WebRTC、NativeWebSocket、URP），需等待幾分鐘。
+### 開啟後
 
-**Step 4 — 執行**
-
-1. 打開 `Assets/Assets/Scenes/` 內任一場景
-2. 按 **Play**
-3. 畫面上的 QR Code 用手機掃描，即可開始控制
+- 第一次開啟時 Unity 會自動下載套件（WebRTC、NativeWebSocket、URP），需等幾分鐘
+- 套件還原完後，打開 `Assets/Assets/Scenes/` 內任一場景，按 **Play**
+- 畫面上的 QR Code 用手機掃描即可開始控制
 
 ---
 
