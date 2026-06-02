@@ -35,14 +35,12 @@ public class WebRtcJoystickController : MonoBehaviour
 
     private float _h, _v;
 
-    // 實際操控的 Transform（targetObject 優先，否則 fallback 自身）
     private Transform Target => targetObject != null ? targetObject : transform;
 
     // ── GUI 版面常數 ──────────────────────────────────────────
-    private const float PanelX      = 10f;
-    private const float PanelY      = 140f;   // 接在 GyroToRotation 面板下方
     private const float PanelWidth  = 300f;
     private const float PanelHeight = 135f;
+    private const float Margin      = 10f;
 
     void OnEnable()  => SensorEvents.OnJoystickReceived += HandleJoystick;
     void OnDisable() => SensorEvents.OnJoystickReceived -= HandleJoystick;
@@ -67,10 +65,24 @@ public class WebRtcJoystickController : MonoBehaviour
     {
         if (!showPanel) return;
 
-        GUI.Box(new Rect(PanelX, PanelY, PanelWidth, PanelHeight), "Joystick Controller");
+        float panelX, panelY;
+        if (GyroToRotation.IsLandscape)
+        {
+            // 橫式：靠底部，排在 Euler Offset 面板右邊
+            panelX = Margin + 300f + Margin;
+            panelY = Screen.height - PanelHeight - Margin;
+        }
+        else
+        {
+            // 直式：靠左上，接在 Euler Offset 面板下方
+            panelX = Margin;
+            panelY = 140f;
+        }
 
-        float x = PanelX + 8f;
-        float y = PanelY + 25f;
+        GUI.Box(new Rect(panelX, panelY, PanelWidth, PanelHeight), "Joystick Controller");
+
+        float x = panelX + 8f;
+        float y = panelY + 25f;
 
         // ── Speed Slider ──────────────────────────────────────
         GUI.Label(new Rect(x, y, 50f, 22f), "Speed");

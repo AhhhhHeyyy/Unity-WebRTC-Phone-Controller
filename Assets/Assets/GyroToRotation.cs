@@ -14,13 +14,20 @@ public class GyroToRotation : MonoBehaviour
     private Quaternion pendingRotation = Quaternion.identity;
     private bool hasData = false;
 
+    // 橫/直式共享狀態，供其他面板讀取以調整版面
+    public static bool IsLandscape = false;
+
+    // 右橫式補償：手機繞本地 Z 軸（螢幕法向量）順時針 90°
+    // 反向 = 右乘 +90° 繞本地 Z，讓橫式前傾 ≡ 直式前傾
+    private static readonly Quaternion LandscapeCompensation =
+        new Quaternion(0f, 0f, 0.7071068f, 0.7071068f);
+
     // ── GUI 版面常數 ──────────────────────────────────────────
-    private const float PanelX      = 10f;
-    private const float PanelY      = 10f;
     private const float PanelWidth  = 300f;
     private const float PanelHeight = 120f;
     private const float LabelWidth  = 30f;
     private const float ValueWidth  = 50f;
+    private const float Margin      = 10f;
 
     void OnEnable()
     {
@@ -37,8 +44,15 @@ public class GyroToRotation : MonoBehaviour
         float qx = data.qx, qy = data.qy, qz = data.qz, qw = data.qw;
         float mag2 = qx*qx + qy*qy + qz*qz + qw*qw;
         if (mag2 < 0.5f) return;
+
+        Quaternion q = new Quaternion(qx, qy, qz, qw);
+        if (IsLandscape)
+        {
+            // 右橫式：消除手機 90° 順時針本地旋轉，使手勢語意與直式一致
+            q = q * LandscapeCompensation;
+        }
         // Browser right-hand (X=East, Y=North, Z=Up) → Unity left-hand (X=Right, Y=Up, Z=Forward)
-        pendingRotation = new Quaternion(qx, -qz, qy, qw);
+        pendingRotation = new Quaternion(q.x, -q.z, q.y, q.w);
         hasData = true;
     }
 
@@ -50,40 +64,51 @@ public class GyroToRotation : MonoBehaviour
 
     void OnGUI()
     {
+        // 橫/直切換按鈕：固定右上角，兩種模式都顯示
+        float btnW = 80f, btnH = 25f;
+        if (GUI.Button(new Rect(Screen.width - btnW - Margin, Margin, btnW, btnH),
+                       IsLandscape ? "直式" : "橫式"))
+        {
+            IsLandscape = !IsLandscape;
+#if !UNITY_EDITOR
+            Screen.orientation = IsLandscape
+                ? ScreenOrientation.LandscapeLeft
+                : ScreenOrientation.Portrait;
+#endif
+        }
+
         if (!showPanel) return;
 
-        GUI.Box(new Rect(PanelX, PanelY, PanelWidth, PanelHeight), "Euler Offset");
+        float panelX = Margin;
+        float panelY = IsLandscape
+            ? Screen.height - PanelHeight - Margin
+            : Margin;
 
-        float y = PanelY + 25f;
-        eulerOffset.x = DrawSliderRow("X", eulerOffset.x, y);
-        y += 30f;
-        eulerOffset.y = DrawSliderRow("Y", eulerOffset.y, y);
-        y += 30f;
-        eulerOffset.z = DrawSliderRow("Z", eulerOffset.z, y);
+        GUI.Box(new Rect(panelX, panelY, PanelWidth, PanelHeight), "Euler Offset");
 
-        // Reset 按鈕
+        float y = panelY + 25f;
+        eulerOffset.x = DrawSliderRow("X", eulerOffset.x, panelX, y); y += 30f;
+        eulerOffset.y = DrawSliderRow("Y", eulerOffset.y, panelX, y); y += 30f;
+        eulerOffset.z = DrawSliderRow("Z", eulerOffset.z, panelX, y);
+
         y += 32f;
-        if (GUI.Button(new Rect(PanelX + 8f, y, 60f, 22f), "Reset"))
+        if (GUI.Button(new Rect(panelX + 8f, y, 60f, 22f), "Reset"))
             eulerOffset = Vector3.zero;
     }
 
-    /// <summary>畫一行：軸名 Label + Slider + 數值顯示</summary>
-    private float DrawSliderRow(string axisLabel, float current, float y)
+    private float DrawSliderRow(string axisLabel, float current, float panelX, float y)
     {
-        float x = PanelX + 8f;
+        float x = panelX + 8f;
 
-        // 軸名
         GUI.Label(new Rect(x, y, LabelWidth, 22f), axisLabel);
         x += LabelWidth;
 
-        // Slider
         float sliderWidth = PanelWidth - LabelWidth - ValueWidth - 24f;
         float newVal = GUI.HorizontalSlider(
             new Rect(x, y + 4f, sliderWidth, 18f),
             current, -sliderRange, sliderRange);
         x += sliderWidth + 4f;
 
-        // 數值（可直接輸入）
         string input = GUI.TextField(new Rect(x, y, ValueWidth, 22f), newVal.ToString("F1"));
         if (float.TryParse(input, out float parsed))
             newVal = Mathf.Clamp(parsed, -sliderRange, sliderRange);
