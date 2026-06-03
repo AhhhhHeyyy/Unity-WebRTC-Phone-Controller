@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.Rendering;
 
 /// <summary>
 /// 網頁按鈕按下(0x03) → 從 aimPoint 發射 Raycast，
@@ -22,23 +23,69 @@ public class WebRtcSelectController : MonoBehaviour
 
     [Header("射線視覺化")]
     public float rayLength = 100f;
-    public Color rayColor  = Color.red;
+    [Tooltip("光管直徑（越大越粗壯）")]
+    public float tubeWidth = 0.18f;
 
-    private Rigidbody  targetBody;
-    private Vector3    holdOffset;
-    private bool       _isHolding;
-    private LineRenderer _line;
+    private Rigidbody    targetBody;
+    private Vector3      holdOffset;
+    private bool         _isHolding;
+    private LineRenderer _glow;   // 外層柔光（寬＋漸層貼圖）
+    private LineRenderer _core;   // 亮白芯（細）
 
     void Awake()
     {
-        _line = gameObject.AddComponent<LineRenderer>();
-        _line.positionCount = 2;
-        _line.startWidth    = 0.02f;
-        _line.endWidth      = 0.02f;
-        _line.material      = new Material(Shader.Find("Sprites/Default"));
-        _line.startColor    = rayColor;
-        _line.endColor      = rayColor;
-        _line.useWorldSpace = true;
+        Texture2D neonTex = BuildNeonTexture(64);
+
+        // 外層：寬光暈，用漸層貼圖製造「圓管截面」感
+        _glow = MakeLayer("_RayGlow");
+        _glow.startWidth = tubeWidth;
+        _glow.endWidth   = tubeWidth * 0.25f;
+        _glow.material   = new Material(Shader.Find("Sprites/Default"));
+        _glow.material.mainTexture = neonTex;
+        _glow.startColor = Color.white;
+        _glow.endColor   = new Color(1f, 1f, 1f, 0.4f);
+
+        // 內層：細亮芯，讓中心有強烈亮點
+        _core = gameObject.AddComponent<LineRenderer>();
+        _core.positionCount     = 2;
+        _core.useWorldSpace     = true;
+        _core.shadowCastingMode = ShadowCastingMode.Off;
+        _core.receiveShadows    = false;
+        _core.startWidth = tubeWidth * 0.10f;
+        _core.endWidth   = tubeWidth * 0.03f;
+        _core.material   = new Material(Shader.Find("Sprites/Default"));
+        _core.material.mainTexture = neonTex;
+        _core.startColor = Color.white;
+        _core.endColor   = new Color(1f, 1f, 1f, 0.8f);
+    }
+
+    // 生成 1×h 的 Gaussian 漸層貼圖：中心全白不透明，邊緣淡出為透明
+    private Texture2D BuildNeonTexture(int h)
+    {
+        var tex = new Texture2D(1, h, TextureFormat.RGBA32, false);
+        tex.wrapMode = TextureWrapMode.Clamp;
+        tex.filterMode = FilterMode.Bilinear;
+        for (int i = 0; i < h; i++)
+        {
+            float t    = (float)i / (h - 1);          // 0..1
+            float dist = Mathf.Abs(t - 0.5f) * 2f;   // 0=中心 1=邊緣
+            float a    = Mathf.Exp(-dist * dist * 5f); // Gaussian 衰減
+            tex.SetPixel(0, i, new Color(1f, 1f, 1f, a));
+        }
+        tex.Apply();
+        return tex;
+    }
+
+    private LineRenderer MakeLayer(string goName)
+    {
+        var go = new GameObject(goName);
+        go.transform.SetParent(transform);
+        var lr = go.AddComponent<LineRenderer>();
+        lr.positionCount     = 2;
+        lr.useWorldSpace     = true;
+        lr.shadowCastingMode = ShadowCastingMode.Off;
+        lr.receiveShadows    = false;
+        return lr;
     }
 
     void OnEnable()
@@ -61,13 +108,12 @@ public class WebRtcSelectController : MonoBehaviour
         {
             Vector3 start = aimPoint.position;
             Vector3 end   = start + GetDir() * rayLength;
-            _line.SetPosition(0, start);
-            _line.SetPosition(1, end);
-            _line.enabled = true;
+            SetPositions(start, end);
+            SetEnabled(true);
         }
         else
         {
-            _line.enabled = false;
+            SetEnabled(false);
         }
 
         if (!_isHolding || aimPoint == null) return;
@@ -76,20 +122,17 @@ public class WebRtcSelectController : MonoBehaviour
 
         if (targetBody != null) return;
 
-        // 取得射線上所有命中，依距離排序，找第一個有 DraggableObject 的
         RaycastHit[] hits = Physics.RaycastAll(aimPoint.position, dir, 100f, draggableLayer);
         System.Array.Sort(hits, (a, b) => a.distance.CompareTo(b.distance));
 
         foreach (RaycastHit hit in hits)
         {
-            // 跳過 aimPoint 與 lockTarget 自身的 collider
             if (hit.collider.transform.IsChildOf(aimPoint.root)) continue;
             if (lockTarget != null && hit.collider.transform.IsChildOf(lockTarget.root)) continue;
 
             DraggableObject draggable = hit.collider.GetComponentInParent<DraggableObject>();
             if (draggable == null) continue;
 
-            // 往上找父物件的 Rigidbody（移動整個父物件）
             Rigidbody rb = draggable.GetComponentInParent<Rigidbody>();
             if (rb == null)
             {
@@ -100,7 +143,6 @@ public class WebRtcSelectController : MonoBehaviour
             Debug.Log($"[Grab] 命中: {hit.collider.name}，距離: {hit.distance:F2}");
             targetBody = rb;
 
-            // 記錄抓取當下 lockTarget（有則用，無則用 aimPoint）到物件的偏移
             Transform anchor = lockTarget != null ? lockTarget : aimPoint;
             holdOffset = rb.position - anchor.position;
 
@@ -121,7 +163,6 @@ public class WebRtcSelectController : MonoBehaviour
         Transform anchor = lockTarget != null ? lockTarget : aimPoint;
         if (anchor == null) return;
 
-        // 目標位置 = anchor 當前位置 + 抓取時的偏移 → 物件跟著 lockTarget 移動
         Vector3 target = anchor.position + holdOffset;
 
         if (targetBody.isKinematic)
@@ -142,6 +183,18 @@ public class WebRtcSelectController : MonoBehaviour
             targetBody.angularDamping = 0.05f;
         }
         targetBody = null;
+    }
+
+    private void SetPositions(Vector3 s, Vector3 e)
+    {
+        _glow.SetPosition(0, s); _glow.SetPosition(1, e);
+        _core.SetPosition(0, s); _core.SetPosition(1, e);
+    }
+
+    private void SetEnabled(bool on)
+    {
+        _glow.enabled = on;
+        _core.enabled = on;
     }
 
     private Vector3 GetDir() => lockTarget != null
