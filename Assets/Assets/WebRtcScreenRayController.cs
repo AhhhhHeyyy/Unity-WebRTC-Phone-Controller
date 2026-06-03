@@ -99,6 +99,14 @@ public class WebRtcScreenRayController : MonoBehaviour
             _targetBody.linearVelocity = (target - _targetBody.position) * dragForce;
     }
 
+    public bool IsHolding => _targetBody != null;
+
+    public void AddHoldOffset(Vector3 worldDelta)
+    {
+        if (_targetBody != null)
+            _holdOffset += worldDelta;
+    }
+
     private void Release()
     {
         _isHolding = false;
