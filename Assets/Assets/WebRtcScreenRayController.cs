@@ -101,6 +101,12 @@ public class WebRtcScreenRayController : MonoBehaviour
 
     public bool IsHolding => _targetBody != null;
 
+    /// <summary>若目前抓取的就是 rb，強制釋放（不影響其他物件的抓取）</summary>
+    public void ForceRelease(Rigidbody rb)
+    {
+        if (_targetBody == rb) Release();
+    }
+
     public void AddHoldOffset(Vector3 worldDelta)
     {
         if (_targetBody != null)
